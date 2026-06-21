@@ -175,7 +175,7 @@ const props = defineProps({
   defaultMeal: String
 })
 
-const emit = defineEmits(['close', 'submit'])
+const emit = defineEmits(['close', 'submit', 'create-from-template'])
 
 const formData = reactive({
   name: '',
@@ -189,7 +189,7 @@ const formData = reactive({
   ingredients: []
 })
 
-const { isTemplateComplete, getTemplateCompletionInfo, recordUsage } = useDishTemplates()
+const { isTemplateComplete, getTemplateCompletionInfo } = useDishTemplates()
 
 const isEdit = ref(false)
 const formMode = ref('manual')
@@ -231,8 +231,6 @@ watch(() => props.visible, (val) => {
 })
 
 const handleTemplateSelect = (template) => {
-  selectedTemplateId.value = template.id
-  
   const complete = isTemplateComplete(template)
   if (!complete) {
     const info = getTemplateCompletionInfo(template)
@@ -242,20 +240,19 @@ const handleTemplateSelect = (template) => {
     if (!confirmed) return
   }
 
-  Object.assign(formData, {
-    name: template.name || '',
-    mealType: props.defaultMeal || template.mealType || 'dinner',
-    taste: template.taste || '',
-    proteinSource: template.proteinSource || '',
-    servings: template.servings || 3,
-    prepTime: template.prepTime || 30,
-    calories: template.calories || null,
-    status: 'pending',
-    ingredients: JSON.parse(JSON.stringify(template.ingredients || []))
+  emit('create-from-template', {
+    templateId: template.id,
+    templateData: {
+      name: template.name || '',
+      taste: template.taste || '',
+      proteinSource: template.proteinSource || '',
+      servings: template.servings || 3,
+      prepTime: template.prepTime || 30,
+      calories: template.calories || null,
+      ingredients: JSON.parse(JSON.stringify(template.ingredients || [])),
+      status: 'pending'
+    }
   })
-
-  recordUsage(template.id)
-  formMode.value = 'manual'
 }
 
 const addIngredient = () => {

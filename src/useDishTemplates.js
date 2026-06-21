@@ -73,12 +73,25 @@ export function useDishTemplates() {
     }
   }
 
-  const addTemplate = (dishData) => {
+  const addTemplate = (dishData, overwrite = false) => {
     const existing = templates.value.find(
       t => t.name.trim().toLowerCase() === (dishData.name || '').trim().toLowerCase()
     )
-    if (existing) {
-      return { success: false, message: '已存在同名模板' }
+    if (existing && !overwrite) {
+      return { success: false, message: '同名模板已存在', existing }
+    }
+
+    if (existing && overwrite) {
+      Object.assign(existing, {
+        taste: dishData.taste || '',
+        proteinSource: dishData.proteinSource || '',
+        servings: dishData.servings || 3,
+        prepTime: dishData.prepTime || 30,
+        calories: dishData.calories || null,
+        ingredients: JSON.parse(JSON.stringify(dishData.ingredients || [])),
+        mealType: dishData.mealType || ''
+      })
+      return { success: true, template: existing, overwritten: true }
     }
 
     const newTemplate = {
@@ -154,7 +167,7 @@ export function useDishTemplates() {
   const matchesFilters = (template) => {
     if (filters.value.taste && template.taste !== filters.value.taste) return false
     if (filters.value.proteinSource && template.proteinSource !== filters.value.proteinSource) return false
-    if (filters.value.mealType && template.mealType && template.mealType !== filters.value.mealType) return false
+    if (filters.value.mealType && template.mealType !== filters.value.mealType) return false
     if (filters.value.keyword) {
       const keyword = filters.value.keyword.trim().toLowerCase()
       if (!template.name.toLowerCase().includes(keyword)) {

@@ -83,6 +83,7 @@
       :default-meal="defaultMeal"
       @close="showDishForm = false"
       @submit="handleDishSubmit"
+      @create-from-template="handleCreateFromTemplate"
     />
 
     <CopyDishModal
@@ -140,7 +141,7 @@ const defaultDay = ref(0)
 const defaultMeal = ref('dinner')
 const showTemplateManager = ref(false)
 
-const { addTemplate } = useDishTemplates()
+const { addTemplate, recordUsage } = useDishTemplates()
 
 const copySourceDish = ref(null)
 const copySourceDay = ref(0)
@@ -171,6 +172,13 @@ const handleDishSubmit = ({ data, isEdit, dishId }) => {
   showDishForm.value = false
 }
 
+const handleCreateFromTemplate = ({ templateId, templateData }) => {
+  const mealType = defaultMeal.value
+  addDish(defaultDay.value, mealType, templateData)
+  recordUsage(templateId)
+  showDishForm.value = false
+}
+
 const handleCopyDish = ({ dish, day, mealType }) => {
   copySourceDish.value = dish
   copySourceDay.value = day
@@ -188,9 +196,19 @@ const handleCopyConfirm = ({ dishId, targets }) => {
 const handleSaveTemplate = (dish) => {
   const result = addTemplate(dish)
   if (result.success) {
-    alert(`已将"${dish.name}"保存为模板`)
+    if (result.overwritten) {
+      alert(`已更新模板"${dish.name}"`)
+    } else {
+      alert(`已将"${dish.name}"保存为模板`)
+    }
   } else {
-    alert(result.message)
+    const confirmed = confirm(`模板"${dish.name}"已存在，是否覆盖更新？`)
+    if (confirmed) {
+      const overwriteResult = addTemplate(dish, true)
+      if (overwriteResult.success) {
+        alert(`已更新模板"${dish.name}"`)
+      }
+    }
   }
 }
 

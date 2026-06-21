@@ -435,8 +435,12 @@ const saveTemplate = () => {
   } else {
     const result = addTemplate(data)
     if (!result.success) {
-      alert(result.message)
-      return
+      const confirmed = confirm(`模板"${data.name}"已存在，是否覆盖更新？`)
+      if (confirmed) {
+        addTemplate(data, true)
+      } else {
+        return
+      }
     }
   }
 
