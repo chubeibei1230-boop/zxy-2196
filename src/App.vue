@@ -70,6 +70,7 @@
           @edit-dish="handleEditDish"
           @copy-dish="handleCopyDish"
           @save-template="handleSaveTemplate"
+          @open-recommend="handleOpenRecommend"
         />
       </div>
 
@@ -104,6 +105,16 @@
       :visible="showTemplateManager"
       @close="showTemplateManager = false"
     />
+
+    <WeeklyRecommendPanel
+      :visible="showRecommendPanel"
+      :day="recommendDay"
+      @close="showRecommendPanel = false"
+      @add-dish="handleRecommendAddDish"
+      @open-templates="showRecommendPanel = false; showTemplateManager = true"
+      @open-settings="showRecommendPanel = false; showSettings = true"
+      @add-dish-manual="handleManualAddFromRecommend"
+    />
   </div>
 </template>
 
@@ -117,6 +128,7 @@ import CopyDishModal from './components/CopyDishModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import WarningsPanel from './components/WarningsPanel.vue'
 import TemplateManager from './components/TemplateManager.vue'
+import WeeklyRecommendPanel from './components/WeeklyRecommendPanel.vue'
 import { useMenuStore } from './useMenuStore.js'
 import { useDishTemplates } from './useDishTemplates.js'
 
@@ -141,11 +153,14 @@ const defaultDay = ref(0)
 const defaultMeal = ref('dinner')
 const showTemplateManager = ref(false)
 
-const { addTemplate, recordUsage } = useDishTemplates()
+const { addTemplate, recordUsage, createDishFromTemplate } = useDishTemplates()
 
 const copySourceDish = ref(null)
 const copySourceDay = ref(0)
 const copySourceMeal = ref('dinner')
+
+const showRecommendPanel = ref(false)
+const recommendDay = ref(0)
 
 const handleAddDish = ({ day, mealType }) => {
   editingDish.value = null
@@ -219,5 +234,25 @@ const batchUpdate = (status) => {
 
 const exportCSV = () => {
   exportToCSV()
+}
+
+const handleOpenRecommend = (day) => {
+  recommendDay.value = day
+  showRecommendPanel.value = true
+}
+
+const handleRecommendAddDish = ({ day, mealType, template }) => {
+  const dishData = createDishFromTemplate(template.id)
+  if (dishData) {
+    addDish(day, mealType, dishData)
+  }
+}
+
+const handleManualAddFromRecommend = ({ day, mealType }) => {
+  editingDish.value = null
+  defaultDay.value = day
+  defaultMeal.value = mealType || 'dinner'
+  showRecommendPanel.value = false
+  showDishForm.value = true
 }
 </script>

@@ -17,6 +17,13 @@
 
     <div class="week-body">
       <div class="day-column" v-for="day in DAYS_OF_WEEK" :key="day.value">
+        <div class="day-column-header">
+          <button 
+            class="btn-recommend" 
+            @click="openRecommend(day.value)"
+            title="本周复用推荐"
+          >🔄 推荐</button>
+        </div>
         <div 
           v-for="meal in MEAL_TYPES" 
           :key="meal.value" 
@@ -57,7 +64,7 @@ import { DAYS_OF_WEEK, MEAL_TYPES } from '../constants.js'
 import { useMenuStore } from '../useMenuStore.js'
 import { useMenuChecker } from '../useMenuChecker.js'
 
-const emit = defineEmits(['add-dish', 'edit-dish', 'copy-dish', 'save-template'])
+const emit = defineEmits(['add-dish', 'edit-dish', 'copy-dish', 'save-template', 'open-recommend'])
 
 const { 
   getDishesByDayAndMeal, 
@@ -102,5 +109,9 @@ const handleDelete = (dishId) => {
 
 const handleSaveTemplate = (dish) => {
   emit('save-template', dish)
+}
+
+const openRecommend = (day) => {
+  emit('open-recommend', day)
 }
 </script>
