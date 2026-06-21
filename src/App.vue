@@ -6,6 +6,9 @@
         <p class="subtitle">营养搭配 · 采购估算 · 口味平衡</p>
       </div>
       <div class="header-right">
+        <button class="btn btn-templates" @click="showTemplateManager = true">
+          📋 模板管理
+        </button>
         <button class="btn btn-settings" @click="showSettings = true">
           ⚙️ 设置
         </button>
@@ -66,6 +69,7 @@
           @add-dish="handleAddDish"
           @edit-dish="handleEditDish"
           @copy-dish="handleCopyDish"
+          @save-template="handleSaveTemplate"
         />
       </div>
 
@@ -94,6 +98,11 @@
       :visible="showSettings"
       @close="showSettings = false"
     />
+
+    <TemplateManager
+      :visible="showTemplateManager"
+      @close="showTemplateManager = false"
+    />
   </div>
 </template>
 
@@ -106,7 +115,9 @@ import DishFormModal from './components/DishFormModal.vue'
 import CopyDishModal from './components/CopyDishModal.vue'
 import SettingsModal from './components/SettingsModal.vue'
 import WarningsPanel from './components/WarningsPanel.vue'
+import TemplateManager from './components/TemplateManager.vue'
 import { useMenuStore } from './useMenuStore.js'
+import { useDishTemplates } from './useDishTemplates.js'
 
 const {
   selectedDishes,
@@ -127,6 +138,9 @@ const showSettings = ref(false)
 const editingDish = ref(null)
 const defaultDay = ref(0)
 const defaultMeal = ref('dinner')
+const showTemplateManager = ref(false)
+
+const { addTemplate } = useDishTemplates()
 
 const copySourceDish = ref(null)
 const copySourceDay = ref(0)
@@ -169,6 +183,15 @@ const handleCopyConfirm = ({ dishId, targets }) => {
     copyDish(dishId, day, meal)
   })
   showCopyModal.value = false
+}
+
+const handleSaveTemplate = (dish) => {
+  const result = addTemplate(dish)
+  if (result.success) {
+    alert(`已将"${dish.name}"保存为模板`)
+  } else {
+    alert(result.message)
+  }
 }
 
 const batchUpdate = (status) => {

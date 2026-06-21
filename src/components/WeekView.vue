@@ -41,6 +41,7 @@
               @copy="openCopyModal(dish, day.value, meal.value)"
               @delete="handleDelete(dish.id)"
               @toggle-select="toggleSelect"
+              @save-template="handleSaveTemplate(dish)"
             />
           </div>
         </div>
@@ -56,7 +57,7 @@ import { DAYS_OF_WEEK, MEAL_TYPES } from '../constants.js'
 import { useMenuStore } from '../useMenuStore.js'
 import { useMenuChecker } from '../useMenuChecker.js'
 
-const emit = defineEmits(['add-dish', 'edit-dish', 'copy-dish'])
+const emit = defineEmits(['add-dish', 'edit-dish', 'copy-dish', 'save-template'])
 
 const { 
   getDishesByDayAndMeal, 
@@ -97,5 +98,9 @@ const handleDelete = (dishId) => {
   if (confirm('确定要删除这道菜吗？')) {
     deleteDish(dishId)
   }
+}
+
+const handleSaveTemplate = (dish) => {
+  emit('save-template', dish)
 }
 </script>

@@ -55,6 +55,7 @@
     <div class="dish-actions">
       <button class="action-btn edit" @click.stop="$emit('edit', dish)">编辑</button>
       <button class="action-btn copy" @click.stop="$emit('copy', dish)">复制</button>
+      <button class="action-btn template" @click.stop="$emit('save-template', dish)">存为模板</button>
       <button class="action-btn delete" @click.stop="$emit('delete', dish.id)">删除</button>
     </div>
   </div>
@@ -75,7 +76,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['edit', 'copy', 'delete', 'toggle-select', 'click'])
+const emit = defineEmits(['edit', 'copy', 'delete', 'toggle-select', 'click', 'save-template'])
 
 const tasteLabel = computed(() => getTasteLabel(props.dish.taste))
 const tasteColor = computed(() => getTasteColor(props.dish.taste))

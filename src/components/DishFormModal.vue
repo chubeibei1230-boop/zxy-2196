@@ -5,8 +5,32 @@
         <h3>{{ isEdit ? '编辑菜品' : '新增菜品' }}</h3>
         <button class="close-btn" @click="handleClose">×</button>
       </div>
+
+      <div class="form-mode-tabs" v-if="!isEdit">
+        <button 
+          class="mode-tab" 
+          :class="{ active: formMode === 'manual' }"
+          @click="formMode = 'manual'"
+        >
+          ✏️ 手动输入
+        </button>
+        <button 
+          class="mode-tab" 
+          :class="{ active: formMode === 'template' }"
+          @click="formMode = 'template'"
+        >
+          📋 从模板选择
+        </button>
+      </div>
       
       <div class="modal-body">
+        <TemplateSelector 
+          v-if="!isEdit && formMode === 'template'"
+          :default-meal-type="defaultMeal"
+          @select="handleTemplateSelect"
+        />
+
+        <div v-if="isEdit || formMode === 'manual'">
         <div class="form-row">
           <label class="form-label">餐次</label>
           <select v-model="formData.mealType" class="form-select">
@@ -127,6 +151,7 @@
             </button>
           </div>
         </div>
+        </div>
       </div>
 
       <div class="modal-footer">
@@ -140,6 +165,8 @@
 <script setup>
 import { ref, watch, reactive } from 'vue'
 import { MEAL_TYPES, TASTE_TYPES, PROTEIN_SOURCES, DISH_STATUSES } from '../constants.js'
+import TemplateSelector from './TemplateSelector.vue'
+import { useDishTemplates } from '../useDishTemplates.js'
 
 const props = defineProps({
   visible: Boolean,
@@ -162,12 +189,18 @@ const formData = reactive({
   ingredients: []
 })
 
+const { isTemplateComplete, getTemplateCompletionInfo, recordUsage } = useDishTemplates()
+
 const isEdit = ref(false)
+const formMode = ref('manual')
+const selectedTemplateId = ref(null)
 
 watch(() => props.visible, (val) => {
   if (val) {
+    selectedTemplateId.value = null
     if (props.dish) {
       isEdit.value = true
+      formMode.value = 'manual'
       Object.assign(formData, {
         name: props.dish.name || '',
         mealType: props.dish.mealType || props.defaultMeal || 'dinner',
@@ -181,6 +214,7 @@ watch(() => props.visible, (val) => {
       })
     } else {
       isEdit.value = false
+      formMode.value = 'template'
       Object.assign(formData, {
         name: '',
         mealType: props.defaultMeal || 'dinner',
@@ -195,6 +229,34 @@ watch(() => props.visible, (val) => {
     }
   }
 })
+
+const handleTemplateSelect = (template) => {
+  selectedTemplateId.value = template.id
+  
+  const complete = isTemplateComplete(template)
+  if (!complete) {
+    const info = getTemplateCompletionInfo(template)
+    const confirmed = confirm(
+      `该模板信息不完整：${info.issues.join('；')}\n\n是否仍然使用此模板？`
+    )
+    if (!confirmed) return
+  }
+
+  Object.assign(formData, {
+    name: template.name || '',
+    mealType: props.defaultMeal || template.mealType || 'dinner',
+    taste: template.taste || '',
+    proteinSource: template.proteinSource || '',
+    servings: template.servings || 3,
+    prepTime: template.prepTime || 30,
+    calories: template.calories || null,
+    status: 'pending',
+    ingredients: JSON.parse(JSON.stringify(template.ingredients || []))
+  })
+
+  recordUsage(template.id)
+  formMode.value = 'manual'
+}
 
 const addIngredient = () => {
   formData.ingredients.push({ name: '', amount: '', unit: '' })
