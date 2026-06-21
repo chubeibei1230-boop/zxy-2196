@@ -9,26 +9,26 @@
     </div>
     
     <div class="warnings-body" v-show="expanded">
-      <div 
-        v-for="day in DAYS_OF_WEEK" 
-        :key="day.value"
-        class="day-warnings-section"
-        v-if="getDayWarnings(day.value).length > 0"
-      >
-        <div class="day-label">{{ day.label }}</div>
-        <ul class="warning-list">
-          <li 
-            v-for="(warning, idx) in getDayWarnings(day.value)" 
-            :key="idx"
-            :class="warning.severity"
-          >
-            <span class="warning-type-icon">
-              {{ warning.severity === 'error' ? '❌' : '⚠️' }}
-            </span>
-            {{ warning.message }}
-          </li>
-        </ul>
-      </div>
+      <template v-for="day in DAYS_OF_WEEK" :key="day.value">
+        <div
+          class="day-warnings-section"
+          v-if="getDayWarnings(day.value).length > 0"
+        >
+          <div class="day-label">{{ day.label }}</div>
+          <ul class="warning-list">
+            <li 
+              v-for="(warning, idx) in getDayWarnings(day.value)" 
+              :key="idx"
+              :class="warning.severity"
+            >
+              <span class="warning-type-icon">
+                {{ warning.severity === 'error' ? '❌' : '⚠️' }}
+              </span>
+              {{ warning.message }}
+            </li>
+          </ul>
+        </div>
+      </template>
     </div>
   </div>
 </template>

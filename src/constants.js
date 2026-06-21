@@ -31,6 +31,37 @@ export const DISH_STATUSES = [
   { value: 'canceled', label: '临时取消', color: '#909399' }
 ]
 
+export const PREP_TASK_TYPES = [
+  { value: 'advance', label: '提前准备', color: '#409eff' },
+  { value: 'dayOf', label: '当天处理', color: '#e6a23c' }
+]
+
+export const PREP_TASK_STATUSES = [
+  { value: 'todo', label: '待处理', color: '#909399' },
+  { value: 'done', label: '已完成', color: '#67c23a' },
+  { value: 'postponed', label: '暂缓', color: '#e6a23c' }
+]
+
+export const getPrepTypeLabel = (value) => {
+  const item = PREP_TASK_TYPES.find(t => t.value === value)
+  return item ? item.label : value
+}
+
+export const getPrepTypeColor = (value) => {
+  const item = PREP_TASK_TYPES.find(t => t.value === value)
+  return item ? item.color : '#999'
+}
+
+export const getPrepStatusLabel = (value) => {
+  const item = PREP_TASK_STATUSES.find(s => s.value === value)
+  return item ? item.label : value
+}
+
+export const getPrepStatusColor = (value) => {
+  const item = PREP_TASK_STATUSES.find(s => s.value === value)
+  return item ? item.color : '#999'
+}
+
 export const DAYS_OF_WEEK = [
   { value: 0, label: '周一' },
   { value: 1, label: '周二' },

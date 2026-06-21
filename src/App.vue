@@ -30,6 +30,13 @@
       >
         🛒 采购汇总
       </button>
+      <button 
+        class="tab-btn" 
+        :class="{ active: activeTab === 'prep' }"
+        @click="activeTab = 'prep'"
+      >
+        🍽️ 备餐计划
+      </button>
     </div>
 
     <WarningsPanel v-if="activeTab === 'week'" />
@@ -75,6 +82,8 @@
       </div>
 
       <ShoppingListView v-else-if="activeTab === 'shopping'" />
+
+      <WeeklyMealPrepPanel v-else-if="activeTab === 'prep'" />
     </div>
 
     <DishFormModal
@@ -129,6 +138,7 @@ import SettingsModal from './components/SettingsModal.vue'
 import WarningsPanel from './components/WarningsPanel.vue'
 import TemplateManager from './components/TemplateManager.vue'
 import WeeklyRecommendPanel from './components/WeeklyRecommendPanel.vue'
+import WeeklyMealPrepPanel from './components/WeeklyMealPrepPanel.vue'
 import { useMenuStore } from './useMenuStore.js'
 import { useDishTemplates } from './useDishTemplates.js'
 

@@ -1,5 +1,5 @@
 import { ref, computed, watch } from 'vue'
-import { generateId, DAYS_OF_WEEK, MEAL_TYPES } from './constants.js'
+import { generateId, DAYS_OF_WEEK, MEAL_TYPES, getMealLabel } from './constants.js'
 
 const STORAGE_KEY = 'family-menu-planner-data'
 const SETTINGS_KEY = 'family-menu-planner-settings'
@@ -84,6 +84,7 @@ export function useMenuStore() {
       ...dishData,
       status: dishData.status || 'pending'
     }
+    newDish.prepTasks = generateDefaultPrepTasks(newDish)
     weekPlan.value[key].push(newDish)
     return newDish
   }
@@ -289,6 +290,232 @@ export function useMenuStore() {
     URL.revokeObjectURL(url)
   }
 
+  const generateDefaultPrepTasks = (dish) => {
+    const tasks = []
+    const dishPrepTime = parseInt(dish.prepTime) || 30
+    const dishName = dish.name || '菜品'
+
+    tasks.push({
+      id: generateId(),
+      title: '采购' + dishName + '所需主料',
+      type: 'advance',
+      status: 'todo',
+      note: '',
+      estimatedMinutes: Math.round(dishPrepTime * 0.3)
+    })
+
+    tasks.push({
+      id: generateId(),
+      title: dishName + '预处理（洗菜/切配）',
+      type: 'dayOf',
+      status: 'todo',
+      note: '',
+      estimatedMinutes: Math.round(dishPrepTime * 0.4)
+    })
+
+    tasks.push({
+      id: generateId(),
+      title: '烹饪' + dishName,
+      type: 'dayOf',
+      status: 'todo',
+      note: '',
+      estimatedMinutes: Math.round(dishPrepTime * 0.3)
+    })
+
+    return tasks
+  }
+
+  const ensurePrepTasksForDish = (dishId) => {
+    for (let day = 0; day < 7; day++) {
+      for (const meal of MEAL_TYPES) {
+        const key = day + '_' + meal.value
+        const dishes = weekPlan.value[key]
+        if (dishes) {
+          const dish = dishes.find(d => d.id === dishId)
+          if (dish) {
+            if (!dish.prepTasks || !Array.isArray(dish.prepTasks) || dish.prepTasks.length === 0) {
+              dish.prepTasks = generateDefaultPrepTasks(dish)
+            }
+            return dish.prepTasks
+          }
+        }
+      }
+    }
+    return []
+  }
+
+  const getDishPrepTasks = (dishId) => {
+    return ensurePrepTasksForDish(dishId)
+  }
+
+  const addPrepTask = (dishId, taskData) => {
+    for (let day = 0; day < 7; day++) {
+      for (const meal of MEAL_TYPES) {
+        const key = day + '_' + meal.value
+        const dishes = weekPlan.value[key]
+        if (dishes) {
+          const dish = dishes.find(d => d.id === dishId)
+          if (dish) {
+            ensurePrepTasksForDish(dishId)
+            const newTask = {
+              id: generateId(),
+              title: taskData.title || '新任务',
+              type: taskData.type || 'dayOf',
+              status: taskData.status || 'todo',
+              note: taskData.note || '',
+              estimatedMinutes: taskData.estimatedMinutes || 10
+            }
+            dish.prepTasks.push(newTask)
+            return newTask
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  const updateDishStatusByPrepTasks = (dish) => {
+    if (!dish.prepTasks || dish.prepTasks.length === 0) return
+    const allDone = dish.prepTasks.every(t => t.status === 'done')
+    const hasTodo = dish.prepTasks.some(t => t.status === 'todo')
+    if (allDone) {
+      dish.status = 'ready'
+    } else if (hasTodo) {
+      dish.status = 'pending'
+    }
+  }
+
+  const updatePrepTask = (dishId, taskId, taskData) => {
+    for (let day = 0; day < 7; day++) {
+      for (const meal of MEAL_TYPES) {
+        const key = day + '_' + meal.value
+        const dishes = weekPlan.value[key]
+        if (dishes) {
+          const dish = dishes.find(d => d.id === dishId)
+          if (dish && dish.prepTasks) {
+            const taskIndex = dish.prepTasks.findIndex(t => t.id === taskId)
+            if (taskIndex !== -1) {
+              dish.prepTasks[taskIndex] = { ...dish.prepTasks[taskIndex], ...taskData }
+              updateDishStatusByPrepTasks(dish)
+              return dish.prepTasks[taskIndex]
+            }
+          }
+        }
+      }
+    }
+    return null
+  }
+
+  const deletePrepTask = (dishId, taskId) => {
+    for (let day = 0; day < 7; day++) {
+      for (const meal of MEAL_TYPES) {
+        const key = day + '_' + meal.value
+        const dishes = weekPlan.value[key]
+        if (dishes) {
+          const dish = dishes.find(d => d.id === dishId)
+          if (dish && dish.prepTasks) {
+            const idx = dish.prepTasks.findIndex(t => t.id === taskId)
+            if (idx !== -1) {
+              dish.prepTasks.splice(idx, 1)
+              return true
+            }
+          }
+        }
+      }
+    }
+    return false
+  }
+
+  const getDayPrepTasks = (day) => {
+    const dayDishes = getDayDishes(day)
+    const tasks = []
+    dayDishes.forEach(dish => {
+      const dishTasks = getDishPrepTasks(dish.id)
+      dishTasks.forEach(task => {
+        tasks.push({
+          ...task,
+          dishId: dish.id,
+          dishName: dish.name,
+          mealType: dish.mealType,
+          day: day
+        })
+      })
+    })
+    return tasks
+  }
+
+  const getAllPrepTasks = computed(() => {
+    const allTasks = []
+    for (let day = 0; day < 7; day++) {
+      const dayTasks = getDayPrepTasks(day)
+      allTasks.push(...dayTasks)
+    }
+    return allTasks
+  })
+
+  const getDayPrepStats = (day) => {
+    const dayTasks = getDayPrepTasks(day)
+    const totalMinutes = dayTasks.reduce((sum, t) => sum + (t.estimatedMinutes || 0), 0)
+    const todoCount = dayTasks.filter(t => t.status === 'todo').length
+    const doneCount = dayTasks.filter(t => t.status === 'done').length
+    const postponedCount = dayTasks.filter(t => t.status === 'postponed').length
+    const isWeekend = day >= 5
+    const availableTime = isWeekend ? settings.value.availablePrepTime.weekend : settings.value.availablePrepTime.weekday
+    const isOverTime = totalMinutes > availableTime
+
+    return {
+      totalMinutes,
+      todoCount,
+      doneCount,
+      postponedCount,
+      totalCount: dayTasks.length,
+      availableTime,
+      isOverTime
+    }
+  }
+
+  const initAllPrepTasks = () => {
+    const dishes = getAllDishes.value
+    dishes.forEach(dish => {
+      ensurePrepTasksForDish(dish.id)
+    })
+  }
+
+  const exportMealPrepCSV = () => {
+    const headers = ['日期', '餐次', '菜品', '任务名称', '任务类型', '状态', '预估时长(分钟)', '备注']
+    const rows = []
+
+    for (let day = 0; day < 7; day++) {
+      const dayTasks = getDayPrepTasks(day)
+      const dayLabel = DAYS_OF_WEEK.find(d => d.value === day)?.label || ''
+      dayTasks.forEach(task => {
+        rows.push([
+          dayLabel,
+          getMealLabel(task.mealType),
+          task.dishName || '',
+          task.title || '',
+          task.type === 'advance' ? '提前准备' : '当天处理',
+          task.status === 'todo' ? '待处理' : task.status === 'done' ? '已完成' : '暂缓',
+          task.estimatedMinutes || '',
+          task.note || ''
+        ])
+      })
+    }
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => '"' + String(cell).replace(/"/g, '""') + '"').join(','))
+      .join('\n')
+
+    const BOM = '\uFEFF'
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = '本周备餐计划_' + new Date().toLocaleDateString() + '.csv'
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
   return {
     weekPlan,
     settings,
@@ -310,6 +537,16 @@ export function useMenuStore() {
     setFilter,
     resetFilters,
     exportToCSV,
-    exportIngredientsCSV
+    exportIngredientsCSV,
+    getDishPrepTasks,
+    addPrepTask,
+    updatePrepTask,
+    deletePrepTask,
+    getDayPrepTasks,
+    getAllPrepTasks,
+    getDayPrepStats,
+    initAllPrepTasks,
+    exportMealPrepCSV,
+    ensurePrepTasksForDish
   }
 }
