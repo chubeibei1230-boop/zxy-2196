@@ -37,15 +37,6 @@ export function useDishTemplates() {
     keyword: ''
   })
 
-  const isTemplateComplete = (template) => {
-    if (!template.name || !template.name.trim()) return false
-    if (!template.ingredients || template.ingredients.length === 0) return false
-    const validIngredients = template.ingredients.filter(
-      ing => ing.name && ing.name.trim()
-    )
-    return validIngredients.length > 0
-  }
-
   const getTemplateCompletionInfo = (template) => {
     const issues = []
     if (!template.name || !template.name.trim()) {
@@ -71,6 +62,10 @@ export function useDishTemplates() {
       isComplete: issues.length === 0,
       issues
     }
+  }
+
+  const isTemplateComplete = (template) => {
+    return getTemplateCompletionInfo(template).isComplete
   }
 
   const addTemplate = (dishData, overwrite = false) => {
