@@ -250,7 +250,7 @@ const isShoppingHot = (name) => {
   if (!name || !name.trim()) return false
   const key = name.trim().toLowerCase()
   const shopInfo = shoppingIngredientMap.value[key]
-  return shopInfo && (shopInfo.dishCount >= 2 || (shopInfo.severity === 'info' && shopInfo.warning?.includes('多道菜使用')))
+  return shopInfo && shopInfo.dishCount >= 2
 }
 
 const getIngredientTooltip = (name) => {
@@ -305,7 +305,6 @@ const getEmptyIcon = (type) => {
   const icons = {
     'no_templates': '📋',
     'all_incomplete': '📝',
-    'no_dishes_yet': '🍽️',
     'time_full': '⏰',
     'well_balanced': '✨',
     'no_match': '🔍',
@@ -320,7 +319,6 @@ const getEmptyTitle = (type) => {
   const titles = {
     'no_templates': '还没有菜品模板',
     'all_incomplete': '模板信息需要完善',
-    'no_dishes_yet': '需要先添加参考菜品',
     'time_full': '准备时长已满',
     'well_balanced': '当天搭配已均衡',
     'no_match': '暂无合适推荐',

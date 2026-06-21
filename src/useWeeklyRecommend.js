@@ -9,7 +9,7 @@ const lastAddedAt = ref(0)
 
 export function useWeeklyRecommend() {
   const { getAllDishes, getDayDishes, getDishesByDayAndMeal, settings } = useMenuStore()
-  const { templates, isTemplateComplete } = useDishTemplates()
+  const { templates, isTemplateComplete, getTemplateCompletionInfo } = useDishTemplates()
   const { shoppingList } = useShoppingList()
   const { getDayWarnings } = useMenuChecker()
 
@@ -41,13 +41,19 @@ export function useWeeklyRecommend() {
     return names
   })
 
-  const weekDishNames = computed(() => {
-    const names = new Set()
+  const weekDishNameDayMap = computed(() => {
+    const map = {}
     getAllDishes.value.forEach(dish => {
       if (dish.status === 'canceled') return
-      if (dish.name) names.add(dish.name.trim().toLowerCase())
+      if (dish.name) {
+        const key = dish.name.trim().toLowerCase()
+        if (!map[key]) map[key] = []
+        if (!map[key].includes(dish.day)) {
+          map[key].push(dish.day)
+        }
+      }
     })
-    return names
+    return map
   })
 
   const touchRecommendations = () => {
@@ -116,23 +122,25 @@ export function useWeeklyRecommend() {
     return false
   }
 
+  const getIncompleteReasons = (template) => {
+    const info = getTemplateCompletionInfo(template)
+    if (info.isComplete) return []
+    return info.issues
+  }
+
   const scoreTemplateForDay = (template, day, mealType = null) => {
     let score = 0
     const reasons = []
     const blockReasons = []
     const reusedIngredients = []
 
-    if (!isTemplateComplete(template)) {
-      blockReasons.push('模板信息不完整')
+    const incompleteReasons = getIncompleteReasons(template)
+    if (incompleteReasons.length > 0) {
+      blockReasons.push(incompleteReasons.join('、'))
       return { score: 0, reasons, blockReasons, template, reusedIngredients }
     }
 
     const tName = (template.name || '').trim().toLowerCase()
-    if (weekDishNames.value.has(tName)) {
-      blockReasons.push('本周已有相同菜品')
-      return { score: 0, reasons, blockReasons, template, reusedIngredients }
-    }
-
     const dayNames = getDayExistingDishNames(day)
     if (dayNames.has(tName)) {
       blockReasons.push('当天已有相同菜品')
@@ -145,7 +153,19 @@ export function useWeeklyRecommend() {
         blockReasons.push('该餐次已有相同菜品')
         return { score: 0, reasons, blockReasons, template, reusedIngredients }
       }
+    }
 
+    const weekInfo = weekDishNameDayMap.value[tName]
+    if (weekInfo && weekInfo.length > 0) {
+      const usedOnOtherDays = weekInfo.filter(d => d !== day).length
+      if (usedOnOtherDays > 0) {
+        score -= 15
+        const dayLabel = usedOnOtherDays >= 3 ? '多天' : `${usedOnOtherDays}天`
+        reasons.push({ type: 'week_duplicate', label: `本周已在${dayLabel}出现`, positive: false })
+      }
+    }
+
+    if (mealType) {
       if (!isMealMatch(template, mealType)) {
         const mealItem = MEAL_TYPES.find(m => m.value === template.mealType)
         const mealLabel = mealItem ? mealItem.label : template.mealType
@@ -178,11 +198,14 @@ export function useWeeklyRecommend() {
         if (shopInfo) {
           if (shopInfo.dishCount >= 3) {
             shoppingBonus += 8
+            if (!reasons.some(r => r.type === 'shopping_hot')) {
+              reasons.push({ type: 'shopping_hot', label: '主料采购高复用', positive: true })
+            }
           } else if (shopInfo.dishCount >= 2) {
             shoppingBonus += 5
-          }
-          if (shopInfo.severity === 'info' && shopInfo.warning && shopInfo.warning.includes('多道菜使用')) {
-            shoppingBonus += 3
+            if (!reasons.some(r => r.type === 'shopping_reuse')) {
+              reasons.push({ type: 'shopping_reuse', label: '主料采购可复用', positive: true })
+            }
           }
         }
       })
@@ -278,10 +301,10 @@ export function useWeeklyRecommend() {
   }
 
   const getEmptyReasonForDay = (day, mealType = null) => {
-    const incompleteCount = templates.value.filter(t => !isTemplateComplete(t)).length
+    const incompleteTemplates = templates.value.filter(t => !isTemplateComplete(t))
+    const incompleteCount = incompleteTemplates.length
     const completeTemplates = templates.value.filter(t => isTemplateComplete(t))
     const dayDishes = getDayDishes(day).filter(d => d.status !== 'canceled')
-    const mealDishes = mealType ? getMealDishes(day, mealType) : dayDishes
     const mealItem = mealType ? MEAL_TYPES.find(m => m.value === mealType) : null
     const mealLabel = mealItem ? mealItem.label : ''
 
@@ -289,7 +312,12 @@ export function useWeeklyRecommend() {
       return { type: 'no_templates', message: '暂无模板数据，请先在模板管理中创建菜品模板', action: 'open-templates' }
     }
     if (incompleteCount === templates.value.length) {
-      return { type: 'all_incomplete', message: '所有模板信息都不完整，请补充模板的主料等关键信息', action: 'open-templates' }
+      const sampleIssues = incompleteTemplates.slice(0, 2).map(t => {
+        const info = getTemplateCompletionInfo(t)
+        return `"${t.name}"${info.issues.join('、')}`
+      })
+      const detail = sampleIssues.length > 0 ? `（如${sampleIssues.join('；')}）` : ''
+      return { type: 'all_incomplete', message: `所有模板信息不完整${detail}，请补充关键信息后重试`, action: 'open-templates' }
     }
 
     const usedTime = getDayUsedPrepTime(day)
@@ -320,29 +348,25 @@ export function useWeeklyRecommend() {
       return proteinCount >= 2
     }).length
 
-    if (completeTemplates.length > 0 && mealDishes.length === 0) {
-      const reasons = []
-      if (timeBlocked === completeTemplates.length) {
-        reasons.push(`准备时长均超限`)
-      }
-      if (reasons.length > 0) {
-        return { type: 'all_blocked', message: `${mealLabel}推荐受限：${reasons.join('、')}。建议调整可用时长设置或减少其他菜品时长` }
-      }
-      return { type: 'no_dishes_yet', message: `${mealLabel}暂无参考菜品，可先添加几道常见菜品，系统将根据主料复用原则给出更精准推荐` }
-    }
+    const dayNames = getDayExistingDishNames(day)
+    const dayDupBlocked = completeTemplates.filter(t =>
+      dayNames.has((t.name || '').trim().toLowerCase())
+    ).length
 
     const blockingReasons = []
     if (timeBlocked > 0) blockingReasons.push(`${timeBlocked}个模板时长超限`)
     if (tasteBlocked > 0) blockingReasons.push(`${tasteBlocked}个模板口味重复`)
     if (proteinBlocked > 0) blockingReasons.push(`${proteinBlocked}个模板蛋白重复`)
+    if (dayDupBlocked > 0) blockingReasons.push(`${dayDupBlocked}个当天已有`)
+    if (incompleteCount > 0) blockingReasons.push(`${incompleteCount}个模板信息不完整`)
 
     if (dayDishes.length > 0) {
       const allDayNames = getDayExistingDishNames(day)
-      const dupBlocked = completeTemplates.filter(t =>
-        allDayNames.has((t.name || '').trim().toLowerCase())
+      const nonDupComplete = completeTemplates.filter(t =>
+        !allDayNames.has((t.name || '').trim().toLowerCase())
       )
-      if (dupBlocked.length === completeTemplates.length) {
-        return { type: 'all_duplicate', message: '完整模板在本周/当天均已出现，可尝试添加新菜品模板', action: 'open-templates' }
+      if (nonDupComplete.length === 0 && dayDupBlocked === completeTemplates.length) {
+        return { type: 'all_duplicate', message: '当天已包含所有可用模板菜品，可尝试添加新菜品模板', action: 'open-templates' }
       }
     }
 
@@ -356,7 +380,7 @@ export function useWeeklyRecommend() {
 
     if (blockingReasons.length > 0) {
       const actionHint = mealLabel ? `${mealLabel}暂` : '暂'
-      return { type: 'partial_blocked', message: `${actionHint}无完全匹配的推荐，主要原因：${blockingReasons.join('、')}。可尝试调整时长、减少同口味菜品数量` }
+      return { type: 'partial_blocked', message: `${actionHint}无完全匹配的推荐，主要原因：${blockingReasons.join('、')}。可尝试调整约束或手动添加` }
     }
 
     return { type: 'no_match', message: '当前模板库中没有满足条件的推荐菜品，建议丰富模板库或调整约束条件', action: 'open-templates' }

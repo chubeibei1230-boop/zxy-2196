@@ -98,7 +98,7 @@ export function useShoppingList() {
         severity = severity === 'error' ? 'error' : 'warning'
       }
 
-      if (dishCount > 3) {
+      if (dishCount >= 2) {
         warning = warning ? warning + '、重复采购' : '多道菜使用'
         severity = severity === 'normal' ? 'info' : severity
       }
