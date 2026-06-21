@@ -62,10 +62,35 @@ export function useShoppingList() {
       let warning = ''
       let severity = 'normal'
 
-      const familySize = settings.value.familySize || 3
-      if (item.totalAmount > 0 && item.totalAmount < familySize * 0.1) {
-        warning = '可能不足'
-        severity = 'error'
+      if (item.totalAmount > 0) {
+        const unit = (item.unit || '').trim().toLowerCase()
+        const familySize = settings.value.familySize || 3
+        
+        const countUnits = ['个', '只', '颗', '块', '片', '条', '根', '包', '盒', '瓶', '袋']
+        const weightUnits = ['克', 'g', '千克', 'kg', '公斤', '斤']
+        
+        const isCountUnit = countUnits.some(u => unit.includes(u))
+        const isWeightUnit = weightUnits.some(u => unit.includes(u))
+        
+        if (isCountUnit) {
+          if (item.totalAmount < familySize) {
+            warning = '可能不足'
+            severity = 'error'
+          }
+        } else if (isWeightUnit) {
+          let amountInGrams = item.totalAmount
+          if (unit.includes('千克') || unit.includes('kg') || unit.includes('公斤')) {
+            amountInGrams = item.totalAmount * 1000
+          } else if (unit.includes('斤')) {
+            amountInGrams = item.totalAmount * 500
+          }
+          
+          const perPersonGrams = 100
+          if (amountInGrams < familySize * perPersonGrams * 0.3) {
+            warning = '可能不足'
+            severity = 'error'
+          }
+        }
       }
 
       if (item.unitMismatch) {

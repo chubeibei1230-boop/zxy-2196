@@ -6,7 +6,8 @@ export function useMenuChecker() {
   const { getDayDishes, settings } = useMenuStore()
 
   const checkDay = (day) => {
-    const dishes = getDayDishes(day)
+    const allDishes = getDayDishes(day)
+    const activeDishes = allDishes.filter(dish => dish.status !== 'canceled')
     const warnings = []
 
     const tasteCount = {}
@@ -15,9 +16,7 @@ export function useMenuChecker() {
     let minServings = Infinity
     let hasEmptyIngredients = false
 
-    dishes.forEach(dish => {
-      if (dish.status === 'canceled') return
-
+    activeDishes.forEach(dish => {
       if (dish.taste) {
         tasteCount[dish.taste] = (tasteCount[dish.taste] || 0) + 1
       }
@@ -51,7 +50,7 @@ export function useMenuChecker() {
     }
 
     const minProtein = settings.value.minProteinSourcesPerDay || 2
-    if (dishes.length > 0 && proteinSources.size < minProtein) {
+    if (activeDishes.length > 0 && proteinSources.size < minProtein) {
       warnings.push({
         type: 'protein_insufficient',
         severity: 'error',
@@ -64,7 +63,7 @@ export function useMenuChecker() {
       ? (settings.value.availablePrepTime?.weekend || 120)
       : (settings.value.availablePrepTime?.weekday || 60)
     
-    if (totalPrepTime > availableTime) {
+    if (activeDishes.length > 0 && totalPrepTime > availableTime) {
       warnings.push({
         type: 'prep_time_exceed',
         severity: 'error',
@@ -73,7 +72,7 @@ export function useMenuChecker() {
     }
 
     const familySize = settings.value.familySize || 3
-    if (dishes.length > 0 && minServings < familySize) {
+    if (activeDishes.length > 0 && minServings < familySize) {
       warnings.push({
         type: 'servings_insufficient',
         severity: 'error',

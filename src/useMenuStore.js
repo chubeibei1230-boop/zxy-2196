@@ -89,6 +89,10 @@ export function useMenuStore() {
   }
 
   const updateDish = (dishId, dishData) => {
+    let oldDay = -1
+    let oldMeal = null
+    let originalDish = null
+
     for (let day = 0; day < 7; day++) {
       for (const meal of MEAL_TYPES) {
         const key = `${day}_${meal.value}`
@@ -96,13 +100,45 @@ export function useMenuStore() {
         if (dishes) {
           const idx = dishes.findIndex(d => d.id === dishId)
           if (idx !== -1) {
-            dishes[idx] = { ...dishes[idx], ...dishData }
-            return dishes[idx]
+            oldDay = day
+            oldMeal = meal.value
+            originalDish = dishes[idx]
+            break
           }
         }
       }
+      if (originalDish) break
     }
-    return null
+
+    if (!originalDish) return null
+
+    const newDay = dishData.day !== undefined ? dishData.day : oldDay
+    const newMeal = dishData.mealType || oldMeal
+
+    const updatedDish = { ...originalDish, ...dishData }
+    delete updatedDish.day
+    delete updatedDish.mealType
+
+    if (newDay === oldDay && newMeal === oldMeal) {
+      const oldKey = `${oldDay}_${oldMeal}`
+      const dishes = weekPlan.value[oldKey]
+      const idx = dishes.findIndex(d => d.id === dishId)
+      dishes[idx] = updatedDish
+      return { ...updatedDish, day: newDay, mealType: newMeal }
+    }
+
+    const oldKey = `${oldDay}_${oldMeal}`
+    const oldDishes = weekPlan.value[oldKey]
+    const idx = oldDishes.findIndex(d => d.id === dishId)
+    oldDishes.splice(idx, 1)
+
+    const newKey = `${newDay}_${newMeal}`
+    if (!weekPlan.value[newKey]) {
+      weekPlan.value[newKey] = []
+    }
+    weekPlan.value[newKey].push(updatedDish)
+
+    return { ...updatedDish, day: newDay, mealType: newMeal }
   }
 
   const deleteDish = (dishId) => {

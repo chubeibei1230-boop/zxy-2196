@@ -62,13 +62,15 @@ const {
   getDishesByDayAndMeal, 
   selectedDishes, 
   toggleSelect,
-  deleteDish 
+  deleteDish,
+  matchesFilters
 } = useMenuStore()
 
 const { getDayWarnings } = useMenuChecker()
 
 const getDishes = (day, mealType) => {
-  return getDishesByDayAndMeal(day, mealType)
+  const dishes = getDishesByDayAndMeal(day, mealType)
+  return dishes.filter(d => matchesFilters(d))
 }
 
 const hasError = (day) => {
